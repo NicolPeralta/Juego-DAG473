@@ -5,20 +5,14 @@ public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
-    [Header("Mixer (opcional)")]
-    public AudioMixer audioMixer; // si usas mixer, dejarlo asignado
+    public AudioMixer audioMixer;
 
-    [Header("Exposed parameter names (coincidir con tu AudioMixer)")]
     public string masterParamName = "MasterParam";
     public string musicParamName = "MusicaParam";
     public string sfxParamName = "EfectosParam";
 
-    [Header("Fallback (si no usas AudioMixer)")]
-    [Tooltip("AudioSource que reproducirá la música (asignar en inspector preferentemente).")]
     public AudioSource musicSource;
-    public string musicSourcesTag = "Music"; // solo fallback si musicSource es null
-
-    [Header("Defaults")]
+    public string musicSourcesTag = "Music";
     [Range(0f, 1f)] public float defaultMaster = 1f;
     [Range(0f, 1f)] public float defaultMusic = 1f;
     [Range(0f, 1f)] public float defaultSfx = 1f;
@@ -44,14 +38,12 @@ public class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        // AudioSource para SFX
         sfxSource = gameObject.GetComponent<AudioSource>();
         if (sfxSource == null) sfxSource = gameObject.AddComponent<AudioSource>();
         sfxSource.playOnAwake = false;
         sfxSource.loop = false;
         sfxSource.spatialBlend = 0f; // 2D
 
-        // Si no hay musicSource asignada, intentar encontrar un AudioSource con el tag
         if (musicSource == null && !string.IsNullOrEmpty(musicSourcesTag))
         {
             var go = GameObject.FindWithTag(musicSourcesTag);
@@ -59,7 +51,6 @@ public class AudioManager : MonoBehaviour
                 musicSource = go.GetComponent<AudioSource>();
         }
 
-        // Cargar prefs
         MasterVolume = PlayerPrefs.GetFloat(PREF_MASTER, defaultMaster);
         MusicVolume = PlayerPrefs.GetFloat(PREF_MUSIC, defaultMusic);
         SfxVolume = PlayerPrefs.GetFloat(PREF_SFX, defaultSfx);
@@ -68,8 +59,6 @@ public class AudioManager : MonoBehaviour
         ApplyMusic(MusicVolume);
         ApplySfx(SfxVolume);
     }
-
-    // API pública
     public void SetMaster(float linear)
     {
         MasterVolume = Mathf.Clamp01(linear);
@@ -103,7 +92,6 @@ public class AudioManager : MonoBehaviour
         else
         {
             AudioListener.volume = linear;
-            // Si usas musicSource fallback, mantener su volumen relativo a Master cuando se aplique Music
             if (musicSource != null)
                 musicSource.volume = MusicVolume * MasterVolume;
         }
@@ -111,16 +99,13 @@ public class AudioManager : MonoBehaviour
 
     void ApplyMusic(float linear)
     {
-        // Priorizar AudioMixer si está asignado
         if (audioMixer != null && !string.IsNullOrEmpty(musicParamName))
         {
             audioMixer.SetFloat(musicParamName, LinearToDb(Mathf.Max(0.0001f, linear)));
         }
         else if (musicSource != null)
         {
-            // Usar musicSource si lo tienes asignado (más seguro)
             musicSource.volume = linear * MasterVolume;
-            // Si no está reproduciendo, arrancar la reproducción (asegura que no se "destruya")
             if (!musicSource.isPlaying)
             {
                 if (musicSource.clip != null)
@@ -152,8 +137,6 @@ public class AudioManager : MonoBehaviour
 
         SfxVolume = linear;
     }
-
-    // Reproducir SFX (en 2D, respetando Master * Sfx)
     public void PlaySfx(AudioClip clip)
     {
         if (clip == null || sfxSource == null) return;

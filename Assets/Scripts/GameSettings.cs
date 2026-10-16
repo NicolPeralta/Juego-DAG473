@@ -27,14 +27,14 @@ public static class GameSettings
             case Difficulty.Medio:
                 GameDuration = 300f;   
                 TargetCount = 6;
-                TiempoVisible = 3f;      // aparecen/desaparecen más rápido
+                TiempoVisible = 3f;    
                 TiempoEntreObjetos = 1.5f;
                 VelocidadMovimiento = 6f;
                 break;
             case Difficulty.Dificil:
                 GameDuration = 300f;    
                 TargetCount = 9;
-                TiempoVisible = 2f;    // mucho más rápido
+                TiempoVisible = 2f;   
                 TiempoEntreObjetos = 1f;
                 VelocidadMovimiento = 9f;
                 break;

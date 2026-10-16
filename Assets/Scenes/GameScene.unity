@@ -2850,7 +2850,6 @@ GameObject:
   - component: {fileID: 923054305}
   - component: {fileID: 923054308}
   - component: {fileID: 923054309}
-  - component: {fileID: 923054312}
   - component: {fileID: 923054313}
   m_Layer: 0
   m_Name: Controlador y Piso
@@ -2992,22 +2991,6 @@ MonoBehaviour:
   puntosText: {fileID: 1830050842}
   timeText: {fileID: 1257590258}
   roundText: {fileID: 2133850775}
---- !u!114 &923054312
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 923054303}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3d228c8630143a544965c69b836f0183, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetCanvas: {fileID: 1870949279}
-  anchoredPosition: {x: 100, y: -10}
-  fontSize: 18
-  textColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!114 &923054313
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3465,7 +3448,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1210319726
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -27,7 +27,6 @@ public class Crosshair : MonoBehaviour
 
     void Awake()
     {
-        // Si se proporcionó una textura pero no un sprite, crear Sprite en tiempo de ejecución
         if (crosshairSprite == null && crosshairTexture != null)
         {
             crosshairSprite = Sprite.Create(crosshairTexture, new Rect(0, 0, crosshairTexture.width, crosshairTexture.height), pivot, 100f);
@@ -43,7 +42,7 @@ public class Crosshair : MonoBehaviour
         go.transform.SetParent(targetCanvas.transform, false);
 
         image = go.GetComponent<Image>();
-        image.raycastTarget = false; // permite pasar clics a objetos debajo
+        image.raycastTarget = false; 
 
         rect = go.GetComponent<RectTransform>();
         rect.pivot = pivot;
@@ -55,7 +54,6 @@ public class Crosshair : MonoBehaviour
         }
         else
         {
-            // tamaño por defecto si no hay sprite
             rect.sizeDelta = new Vector2(32f, 32f) * scale;
         }
     }

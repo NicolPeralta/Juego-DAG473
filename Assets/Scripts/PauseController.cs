@@ -4,14 +4,9 @@ using UnityEngine.SceneManagement;
 
 public class PauseController : MonoBehaviour
 {
-    [Header("UI")]
-    [Tooltip("Asigna aquí el Canvas (GameObject) del menú de pausa. Debe estar DESACTIVADO en la escena.")]
+
     public GameObject pauseCanvas;
-
-    [Tooltip("Panel de opciones (opcional). Asignar en inspector si existe.")]
     public GameObject optionsCanvas;
-
-    [Header("Opciones")]
     public bool pauseAudio = false;
     public string mainMenuSceneName = "MainMenu";
 
@@ -74,19 +69,17 @@ public class PauseController : MonoBehaviour
         if (pauseAudio) AudioListener.pause = false;
     }
 
-    // Abrir panel de opciones desde botón del canvas de pausa
     public void OnButton_OpenOptions()
     {
         if (!isPaused)
         {
-            Pause(); // asegurar que estamos en pausa
+            Pause();
         }
 
         if (pauseCanvas != null) pauseCanvas.SetActive(false);
         if (optionsCanvas != null) optionsCanvas.SetActive(true);
     }
 
-    // Volver desde opciones al menu de pausa
     public void OnButton_CloseOptions()
     {
         if (optionsCanvas != null) optionsCanvas.SetActive(false);

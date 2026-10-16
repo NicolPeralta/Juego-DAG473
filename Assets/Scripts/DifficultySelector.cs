@@ -3,18 +3,14 @@ using UnityEngine.SceneManagement;
 
 public class DifficultySelector : MonoBehaviour
 {
-    [SerializeField] private GameObject difficultyCanvas; // asignar en Inspector
+    [SerializeField] private GameObject difficultyCanvas; 
 
     void Awake()
     {
         if (difficultyCanvas != null) difficultyCanvas.SetActive(false);
     }
-
-    // Mostrar / ocultar (para asignar desde Button -> OnClick() en el Inspector)
     public void Show() => difficultyCanvas?.SetActive(true);
     public void Hide() => difficultyCanvas?.SetActive(false);
-
-    // Métodos públicos sin parámetros para asignar desde Button -> OnClick()
     public void SetEasy()   => SetDifficulty(GameSettings.Difficulty.Facil);
     public void SetMedium() => SetDifficulty(GameSettings.Difficulty.Medio);
     public void SetHard()   => SetDifficulty(GameSettings.Difficulty.Dificil);

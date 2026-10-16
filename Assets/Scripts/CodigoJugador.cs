@@ -12,8 +12,8 @@ public class CodigoJugador : MonoBehaviour
     public float tiempoEntreDisparos = 1f;
 
     [Header("SFX")]
-    public AudioClip launchSfx;     // sonido al lanzar
-    public AudioClip impactSfxPrefab; // si quieres que todos los prefabs heredén este hit SFX por defecto
+    public AudioClip launchSfx;    
+    public AudioClip impactSfxPrefab; 
 
     private int puntos = 0;
     private float tiempoUltimoDisparo = -Mathf.Infinity;
@@ -100,11 +100,9 @@ public class CodigoJugador : MonoBehaviour
         lanzador.codigoJugador = this;
         lanzador.gameManager = FindFirstObjectByType<GameManager>();
 
-        // asignar SFX de impacto desde el jugador / prefab (prioridad)
         if (impactSfxPrefab != null)
             lanzador.impactSfx = impactSfxPrefab;
 
-        // reproducir SFX de lanzamiento (local)
         if (launchSfx != null)
             AudioManager.Instance?.PlaySfx(launchSfx);
 

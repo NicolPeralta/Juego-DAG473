@@ -1,6 +1,4 @@
 using UnityEngine;
-
-// script para el objeto lanzado
 public class LanzadorObjeto : MonoBehaviour
 {
     public GameObject cuboObjetivo;
@@ -9,13 +7,12 @@ public class LanzadorObjeto : MonoBehaviour
     private bool yaGolpeo = false;
 
     [Header("SFX")]
-    public AudioClip impactSfx; // asignado por CodigoJugador o por prefab
+    public AudioClip impactSfx; 
 
     void Awake()
     {
         gameManager = FindFirstObjectByType<GameManager>();
     }
-
     void OnTriggerEnter(Collider otro)
     {
         if (yaGolpeo)
@@ -33,27 +30,23 @@ public class LanzadorObjeto : MonoBehaviour
                 gameManager.BajarObjeto(cuboObjetivo);
             }
 
-            // reproducir SFX de impacto
             if (impactSfx != null)
                 AudioManager.Instance?.PlaySfx(impactSfx);
 
             Destroy(gameObject);
             return;
         }
-
         if (otro != null && otro.CompareTag("Obstaculo"))
         {
             Destroy(gameObject);
             return;
         }
-
         if (otro != null && otro.CompareTag("Player"))
         {
             Destroy(gameObject);
             return;
         }
     }
-
     bool EsObjetivo(Collider otro)
     {
         if (otro == null || cuboObjetivo == null)
