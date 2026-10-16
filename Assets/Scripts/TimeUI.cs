@@ -14,10 +14,10 @@ public class TimeUI : MonoBehaviour
 
     void Awake()
     {
-        gm = FindObjectOfType<GameManager>();
+        gm = FindFirstObjectByType<GameManager>();
 
         if (targetCanvas == null)
-            targetCanvas = FindObjectOfType<Canvas>();
+            targetCanvas = FindFirstObjectByType<Canvas>();
 
         if (targetCanvas == null)
             CreateCanvas();
@@ -28,15 +28,15 @@ public class TimeUI : MonoBehaviour
     void Update()
     {
         if (gm == null)
-            gm = FindObjectOfType<GameManager>();
+            gm = FindFirstObjectByType<GameManager>();
 
-        if (gm == null || fillImage == null)    
+        if (gm == null || fillImage == null)
             return;
 
-        // usar tiempo restante de la ronda en vez del total de la partida
-        float remaining = gm.CurrentRoundRemaining;
+        // usa elapsed de la ronda (0 .. roundLength)
+        float elapsed = gm.CurrentRoundElapsed;
         float total = gm.RoundLength > 0f ? gm.RoundLength : 1f;
-        float t = Mathf.Clamp01(remaining / total);
+        float t = Mathf.Clamp01(elapsed / total);
         fillImage.fillAmount = t;
     }
 
@@ -82,7 +82,7 @@ public class TimeUI : MonoBehaviour
         fillImage.type = Image.Type.Filled;
         fillImage.fillMethod = Image.FillMethod.Horizontal;
         fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
-        fillImage.fillAmount = 1f;
+        fillImage.fillAmount = 0f;
         RectTransform fRt = fill.GetComponent<RectTransform>();
         fRt.anchorMin = Vector2.zero;
         fRt.anchorMax = Vector2.one;

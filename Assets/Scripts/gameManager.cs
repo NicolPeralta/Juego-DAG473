@@ -1,112 +1,158 @@
-using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Controla la lógica de aparición de los objetos (muñequitos) por rondas,
+/// tiempos y dificultad. Ahora permite asignar desde el inspector los objetos
+/// concretos que se activarán en cada dificultad: `easyObjects`, `mediumObjects`, `hardObjects`.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
+    [Header("Todos los objetos posibles en la escena (para posiciones iniciales)")]
     public GameObject[] objetos;
+
+    [Header("Asignar manualmente los objetos por dificultad (inspector)")]
+    public GameObject[] easyObjects;
+    public GameObject[] mediumObjects;
+    public GameObject[] hardObjects;
 
     // valores por defecto (se sobrescriben desde GameSettings)
     public float alturaSubida = 4f;
     public float velocidadMovimiento = 5f;
     public float tiempoVisible = 3f;
     public float tiempoEntreObjetos = 2f;
-
-    // parámetros de juego (se ajustan desde GameSettings)
     public float GameDuration { get; private set; } = 180f;
 
-    // rondas
+    [Header("Rondas")]
     public float roundLength = 30f; // cada ronda dura 30 segundos
     private int totalRounds = 1;
     private int currentRound = 1;
 
-    private int targetCount = 6;
+    // Objetos gestionados según la dificultad (exactamente los que quieres en inspector)
+    private List<GameObject> gestionObjects = new List<GameObject>();
 
-    private Vector3[] posicionesIniciales;
-    private bool[] objetosGolpeados;
-    private List<int> gestionIndices = new List<int>();
-    private int ultimoObjeto = -1;
+    // Estado interno
+    private Dictionary<GameObject, Vector3> posicionesIniciales = new Dictionary<GameObject, Vector3>();
+    private Dictionary<GameObject, bool> objetosGolpeados = new Dictionary<GameObject, bool>();
+    private GameObject ultimoObjeto = null;
     private bool juegoActivo = true;
 
     private float startTime;
     private float nextRoundTime;
+    private float lastRoundStartTime;
 
-    // Exponer tiempo restante y rondas para la UI
-    public float RemainingTime
+    // Exponer tiempo transcurrido en ronda para UI
+    public float CurrentRoundElapsed
     {
         get
         {
             if (!juegoActivo) return 0f;
-            float elapsed = Time.time - startTime;
-            return Mathf.Max(0f, GameDuration - elapsed);
-        }
-    }
-
-    // Tiempo restante de la ronda actual (usado por TimeUI)
-    public float CurrentRoundRemaining
-    {
-        get
-        {
-            if (!juegoActivo) return 0f;
-            return Mathf.Max(0f, nextRoundTime - Time.time);
+            return Mathf.Clamp(Time.time - lastRoundStartTime, 0f, roundLength);
         }
     }
 
     public float RoundLength => roundLength;
-
     public int CurrentRound => currentRound;
     public int TotalRounds => totalRounds;
 
     void Start()
     {
-        // aplicar ajustes desde GameSettings (GameSettings es estático)
+        // aplicar ajustes desde GameSettings (estáticos)
         GameDuration = GameSettings.GameDuration;
-        targetCount = GameSettings.TargetCount;
         tiempoVisible = GameSettings.TiempoVisible;
         tiempoEntreObjetos = GameSettings.TiempoEntreObjetos;
         velocidadMovimiento = GameSettings.VelocidadMovimiento;
 
         if (objetos == null || objetos.Length == 0)
         {
-            Debug.LogWarning("GameManager: no hay objetos asignados.");
-            return;
+            Debug.LogWarning("GameManager: no hay objetos asignados en 'objetos'.");
         }
 
         // calcular rondas totales según duración total del juego
         totalRounds = Mathf.Max(1, Mathf.CeilToInt(GameDuration / Mathf.Max(0.01f, roundLength)));
         currentRound = 1;
 
-        // seleccionar índices únicos a gestionar (targetCount o menos)
-        int count = Mathf.Clamp(targetCount, 1, objetos.Length);
-        gestionIndices.Clear();
-        List<int> pool = new List<int>();
-        for (int i = 0; i < objetos.Length; i++) pool.Add(i);
-        for (int i = 0; i < count; i++)
+        // construir diccionario de posiciones iniciales para todos los objetos conocidos
+        posicionesIniciales.Clear();
+        if (objetos != null)
         {
-            int r = Random.Range(0, pool.Count);
-            gestionIndices.Add(pool[r]);
-            pool.RemoveAt(r);
-        }
-
-        posicionesIniciales = new Vector3[objetos.Length];
-        objetosGolpeados = new bool[objetos.Length];
-
-        for (int i = 0; i < objetos.Length; i++)
-        {
-            posicionesIniciales[i] = objetos[i].transform.position;
-            objetosGolpeados[i] = false;
-            // asegurar que los que no gestionamos queden abajo
-            if (!gestionIndices.Contains(i))
+            foreach (var o in objetos)
             {
-                objetos[i].transform.position = posicionesIniciales[i];
+                if (o != null && !posicionesIniciales.ContainsKey(o))
+                    posicionesIniciales[o] = o.transform.position;
             }
         }
 
-        // iniciar el bucle principal que levanta objetos uno a la vez
+        // Determinar la lista de objetos gestionados según la dificultad seleccionada
+        GameSettings.Difficulty diff = GameSettings.SelectedDifficulty;
+        GameObject[] chosen = diff == GameSettings.Difficulty.Facil ? easyObjects
+                              : diff == GameSettings.Difficulty.Medio ? mediumObjects
+                              : hardObjects;
+
+        // Si no se asignaron en inspector, caer en fallback: usar primeros N de 'objetos'
+        if (chosen == null || chosen.Length == 0)
+        {
+            int fallbackCount = GameSettings.TargetCount;
+            Debug.LogWarning($"GameManager: no hay objetos asignados para dificultad {diff}. Usando primeros {fallbackCount} de 'objetos' como fallback.");
+            chosen = new GameObject[Mathf.Min(fallbackCount, objetos != null ? objetos.Length : 0)];
+            if (objetos != null)
+                for (int i = 0; i < chosen.Length; i++) chosen[i] = objetos[i];
+        }
+
+        // construir gestionObjects preservando el orden dado en inspector (no eliminar duplicados)
+        gestionObjects.Clear();
+        foreach (var g in chosen)
+        {
+            if (g == null) continue;
+            if (!gestionObjects.Contains(g))
+                gestionObjects.Add(g);
+
+            // asegure posición inicial almacenada para objetos elegidos que no estaban en 'objetos'
+            if (!posicionesIniciales.ContainsKey(g))
+                posicionesIniciales[g] = g.transform.position;
+        }
+
+        // inicializar estados golpeados y activar/desactivar objetos en escena conforme al set elegido
+        objetosGolpeados.Clear();
+        // si 'objetos' contiene la lista completa de GameObjects en escena, desactivar los no gestionados;
+        // en caso contrario, intentamos no tocar objetos fuera de la lista 'objetos'.
+        HashSet<GameObject> gestionSet = new HashSet<GameObject>(gestionObjects);
+        if (objetos != null)
+        {
+            foreach (var o in objetos)
+            {
+                if (o == null) continue;
+                bool shouldBeActive = gestionSet.Contains(o);
+                if (o.activeSelf != shouldBeActive)
+                    o.SetActive(shouldBeActive);
+
+                // asegurar posición inicial
+                if (posicionesIniciales.ContainsKey(o))
+                    o.transform.position = posicionesIniciales[o];
+
+                objetosGolpeados[o] = false;
+            }
+        }
+        else
+        {
+            // si no hay 'objetos' definidos, sólo asegurar inicialización para gestionObjects
+            foreach (var o in gestionObjects)
+            {
+                if (o == null) continue;
+                if (!o.activeSelf) o.SetActive(true);
+                if (posicionesIniciales.ContainsKey(o))
+                    o.transform.position = posicionesIniciales[o];
+                objetosGolpeados[o] = false;
+            }
+        }
+
+        // iniciar lógica
         StartCoroutine(ControlarObjetos());
         juegoActivo = true;
         startTime = Time.time;
+        lastRoundStartTime = startTime;
         nextRoundTime = startTime + roundLength;
         StartCoroutine(MonitorGameEnd());
     }
@@ -115,23 +161,24 @@ public class GameManager : MonoBehaviour
     {
         while (juegoActivo)
         {
-            if (gestionIndices.Count == 0)
+            if (gestionObjects.Count == 0)
             {
                 yield return null;
                 continue;
             }
 
-            int indice;
+            GameObject seleccionado;
+            int attempts = 0;
             do
             {
-                indice = gestionIndices[Random.Range(0, gestionIndices.Count)];
-            }
-            while (gestionIndices.Count > 1 && indice == ultimoObjeto);
+                seleccionado = gestionObjects[Random.Range(0, gestionObjects.Count)];
+                attempts++;
+            } while (gestionObjects.Count > 1 && seleccionado == ultimoObjeto && attempts < 10);
 
-            ultimoObjeto = indice;
+            ultimoObjeto = seleccionado;
 
             // administrar secuencialmente: subir, esperar tiempoVisible (o hasta que sea golpeado), bajar
-            yield return StartCoroutine(AdministrarObjeto(indice));
+            yield return StartCoroutine(AdministrarObjeto(seleccionado));
 
             // esperar un tiempo entre objetos antes de elegir el siguiente
             float waited = 0f;
@@ -143,20 +190,21 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    IEnumerator AdministrarObjeto(int indice)
+    IEnumerator AdministrarObjeto(GameObject objeto)
     {
-        GameObject objeto = objetos[indice];
+        if (objeto == null || !juegoActivo || !posicionesIniciales.ContainsKey(objeto) || !objeto.activeSelf)
+            yield break;
 
-        Vector3 posicionAbajo = posicionesIniciales[indice];
+        Vector3 posicionAbajo = posicionesIniciales[objeto];
         Vector3 posicionArriba = posicionAbajo + Vector3.up * alturaSubida;
 
-        objetosGolpeados[indice] = false;
+        objetosGolpeados[objeto] = false;
 
         // Subir
         yield return StartCoroutine(MoverObjeto(objeto, posicionAbajo, posicionArriba));
         float tiempo = 0f;
 
-        while (tiempo < tiempoVisible && !objetosGolpeados[indice] && juegoActivo)
+        while (tiempo < tiempoVisible && !objetosGolpeados[objeto] && juegoActivo)
         {
             tiempo += Time.deltaTime;
             yield return null;
@@ -164,7 +212,7 @@ public class GameManager : MonoBehaviour
 
         // Bajar
         yield return StartCoroutine(MoverObjeto(objeto, posicionArriba, posicionAbajo));
-        objetosGolpeados[indice] = false;
+        objetosGolpeados[objeto] = false;
     }
 
     IEnumerator MoverObjeto(GameObject objeto, Vector3 inicio, Vector3 destino)
@@ -200,12 +248,24 @@ public class GameManager : MonoBehaviour
         juegoActivo = false;
         Debug.Log("Juego finalizado por tiempo.");
 
-        // dejar todo en estado abajo y esperar un poco en tiempo real
-        foreach (int idx in gestionIndices)
+        // reactivar todos los objetos y restaurar posiciones iniciales
+        if (objetos != null)
         {
-            if (idx >= 0 && idx < objetos.Length)
+            foreach (var o in objetos)
             {
-                objetos[idx].transform.position = posicionesIniciales[idx];
+                if (o == null) continue;
+                o.SetActive(true);
+                if (posicionesIniciales.ContainsKey(o))
+                    o.transform.position = posicionesIniciales[o];
+            }
+        }
+        else
+        {
+            foreach (var o in gestionObjects)
+            {
+                if (o == null) continue;
+                if (posicionesIniciales.ContainsKey(o))
+                    o.transform.position = posicionesIniciales[o];
             }
         }
 
@@ -216,42 +276,37 @@ public class GameManager : MonoBehaviour
 
     void AdvanceRound()
     {
-        // no avanzar más allá de totalRounds
         if (currentRound >= totalRounds)
             return;
 
         currentRound++;
-        // reducir tiempoVisible en 0.1 cada ronda (mínimo 0.1)
         tiempoVisible = Mathf.Max(0.1f, tiempoVisible - 0.1f);
+        lastRoundStartTime = Time.time;
         Debug.Log($"Ronda {currentRound}/{totalRounds} - nuevo tiempoVisible: {tiempoVisible:F2}s");
     }
 
-    // llamada por LanzadorObjeto cuando golpea (mantener funcionalidad)
+    /// <summary>
+    /// Marca como golpeado el muñeco correspondiente. Se busca coincidencia directa,
+    /// luego por hijo/raíz para soportar colisiones sobre partes hijas del muñeco.
+    /// </summary>
     public void BajarObjeto(GameObject objetoGolpeado)
     {
-        if (objetoGolpeado == null)
+        if (objetoGolpeado == null) return;
+
+        // Coincidencia directa
+        if (objetosGolpeados.ContainsKey(objetoGolpeado))
+        {
+            objetosGolpeados[objetoGolpeado] = true;
             return;
-        for (int i = 0; i < objetos.Length; i++)
-        {
-            if (objetos[i] == objetoGolpeado)
-            {
-                objetosGolpeados[i] = true;
-                return;
-            }
         }
-        for (int i = 0; i < objetos.Length; i++)
+
+        // Si colisiona en una parte hija, buscar el padre gestionado
+        foreach (var g in gestionObjects)
         {
-            if (objetoGolpeado.transform.IsChildOf(objetos[i].transform))
+            if (g == null) continue;
+            if (objetoGolpeado.transform.IsChildOf(g.transform) || objetoGolpeado.transform.root.gameObject == g)
             {
-                objetosGolpeados[i] = true;
-                return;
-            }
-        }
-        for (int i = 0; i < objetos.Length; i++)
-        {
-            if (objetoGolpeado.transform.root.gameObject == objetos[i])
-            {
-                objetosGolpeados[i] = true;
+                objetosGolpeados[g] = true;
                 return;
             }
         }

@@ -13,7 +13,7 @@ public class RoundUI : MonoBehaviour
 
     void Awake()
     {
-        gm = FindFirstObjectByType<GameManager>();
+        gm = FindFirstObjectByType<GameManager>();  
 
         if (targetCanvas == null)
             targetCanvas = FindFirstObjectByType<Canvas>();
