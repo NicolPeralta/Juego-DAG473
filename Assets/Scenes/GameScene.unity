@@ -893,6 +893,56 @@ MonoBehaviour:
   m_LightCookieSize: {x: 1, y: 1}
   m_LightCookieOffset: {x: 0, y: 0}
   m_SoftShadowQuality: 1
+--- !u!1 &418673861
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 418673863}
+  - component: {fileID: 418673862}
+  m_Layer: 0
+  m_Name: Apuntar
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &418673862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 418673861}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca3c641d73a603041b9f47db05ffe19b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  crosshairSprite: {fileID: 0}
+  crosshairTexture: {fileID: 2800000, guid: 0c5929d0aae3daf4ba048984fe695751, type: 3}
+  scale: 0.04
+  pivot: {x: 0.5, y: 0.5}
+  offset: {x: 0, y: 0}
+  targetCanvas: {fileID: 1870949279}
+--- !u!4 &418673863
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 418673861}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.76131326, y: 5.5593095, z: -9.975131}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &584013669
 GameObject:
   m_ObjectHideFlags: 0
@@ -1030,6 +1080,8 @@ GameObject:
   - component: {fileID: 923054305}
   - component: {fileID: 923054308}
   - component: {fileID: 923054309}
+  - component: {fileID: 923054310}
+  - component: {fileID: 923054311}
   m_Layer: 0
   m_Name: Controlador y Piso
   m_TagString: Untagged
@@ -1143,6 +1195,39 @@ MonoBehaviour:
   jugador: {fileID: 1518632166}
   cooldownImage: {fileID: 584013671}
   puntosText: {fileID: 1830050842}
+--- !u!114 &923054310
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 923054303}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12e8e7afde7f3b247b58e483b73a20eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCanvas: {fileID: 1870949279}
+  crosshairObject: {fileID: 418673861}
+  backgroundAlpha: 0.5
+  mainMenuSceneName: MainMenu
+--- !u!114 &923054311
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 923054303}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3351777ace4509a4281cf7b94ce8996a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetCanvas: {fileID: 1870949279}
+  size: {x: 300, y: 24}
+  anchoredPosition: {x: 0, y: -10}
+  backgroundColor: {r: 0, g: 0, b: 0, a: 0.5}
+  fillColor: {r: 0.2, g: 0.7, b: 0.2, a: 1}
 --- !u!1 &981323794
 GameObject:
   m_ObjectHideFlags: 0
@@ -2296,3 +2381,4 @@ SceneRoots:
   - {fileID: 316959295}
   - {fileID: 1870949280}
   - {fileID: 1261539003}
+  - {fileID: 418673863}

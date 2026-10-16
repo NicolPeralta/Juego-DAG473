@@ -14,7 +14,7 @@ public class LanzadorObjeto : MonoBehaviour
         gameManager = FindFirstObjectByType<GameManager>();
     }
 
-    //este metodo es para detectar colisiones con el cubo objetivo, obstáculos y el jugador con trigger, y para sumar puntos al jugador si golpea el cubo objetivo
+    // este metodo es para detectar colisiones con el cubo objetivo, obstaculos y el jugador con trigger, y para sumar puntos al jugador si golpea el cubo objetivo
     void OnTriggerEnter(Collider otro)
     {
         if (yaGolpeo)
@@ -24,7 +24,8 @@ public class LanzadorObjeto : MonoBehaviour
         {
             yaGolpeo = true;
 
-            codigoJugador.SumarPunto();
+            if (codigoJugador != null)
+                codigoJugador.SumarPunto();
 
             if (gameManager != null)
             {
@@ -35,13 +36,13 @@ public class LanzadorObjeto : MonoBehaviour
             return;
         }
 
-        if (otro.CompareTag("Obstaculo"))
+        if (otro != null && otro.CompareTag("Obstaculo"))
         {
             Destroy(gameObject);
             return;
         }
 
-        if (otro.CompareTag("Player"))
+        if (otro != null && otro.CompareTag("Player"))
         {
             Destroy(gameObject);
             return;
@@ -50,6 +51,10 @@ public class LanzadorObjeto : MonoBehaviour
 
     bool EsObjetivo(Collider otro)
     {
+        // proteger contra referencias nulas: si no hay objetivo asignado, no es objetivo
+        if (otro == null || cuboObjetivo == null)
+            return false;
+
         if (otro.gameObject == cuboObjetivo)
             return true;
 
