@@ -1,20 +1,21 @@
 using UnityEngine;
 
-// este script es para controlar el comportamiento del objeto lanzado, detectando colisiones con el cubo objetivo, obstáculos y el jugador
+// script para el objeto lanzado
 public class LanzadorObjeto : MonoBehaviour
 {
     public GameObject cuboObjetivo;
     public CodigoJugador codigoJugador;
-
     public GameManager gameManager;
     private bool yaGolpeo = false;
+
+    [Header("SFX")]
+    public AudioClip impactSfx; // asignado por CodigoJugador o por prefab
 
     void Awake()
     {
         gameManager = FindFirstObjectByType<GameManager>();
     }
 
-    // este metodo es para detectar colisiones con el cubo objetivo, obstaculos y el jugador con trigger, y para sumar puntos al jugador si golpea el cubo objetivo
     void OnTriggerEnter(Collider otro)
     {
         if (yaGolpeo)
@@ -31,6 +32,10 @@ public class LanzadorObjeto : MonoBehaviour
             {
                 gameManager.BajarObjeto(cuboObjetivo);
             }
+
+            // reproducir SFX de impacto
+            if (impactSfx != null)
+                AudioManager.Instance?.PlaySfx(impactSfx);
 
             Destroy(gameObject);
             return;
@@ -51,7 +56,6 @@ public class LanzadorObjeto : MonoBehaviour
 
     bool EsObjetivo(Collider otro)
     {
-        // proteger contra referencias nulas: si no hay objetivo asignado, no es objetivo
         if (otro == null || cuboObjetivo == null)
             return false;
 

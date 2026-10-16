@@ -5,11 +5,15 @@ public class CodigoJugador : MonoBehaviour
 {
     public GameObject[] prefabs;
     public float velocidadLanzamiento = 10f;
-    public float velocidadMultiplicador = 1.5f; // multiplicador global de velocidad
+    public float velocidadMultiplicador = 1.5f;
     public float alturaParabola = 5f;
-    public float arcMultiplier = 1.2f; // multiplica la altura de la parábola para un arco más notable
+    public float arcMultiplier = 1.2f;
     public Camera camara;
     public float tiempoEntreDisparos = 1f;
+
+    [Header("SFX")]
+    public AudioClip launchSfx;     // sonido al lanzar
+    public AudioClip impactSfxPrefab; // si quieres que todos los prefabs heredén este hit SFX por defecto
 
     private int puntos = 0;
     private float tiempoUltimoDisparo = -Mathf.Infinity;
@@ -18,7 +22,6 @@ public class CodigoJugador : MonoBehaviour
     {
         if (Mouse.current != null ? Mouse.current.leftButton.wasPressedThisFrame : Input.GetMouseButtonDown(0))
         {
-            // comprobar cooldown entre disparos
             if (Time.time - tiempoUltimoDisparo < tiempoEntreDisparos)
                 return;
 
@@ -35,7 +38,6 @@ public class CodigoJugador : MonoBehaviour
             }
             else
             {
-                // Si no hay colisión, proyectar sobre el plano Y=0 (suelo) o usar un punto a distancia
                 Plane suelo = new Plane(Vector3.up, Vector3.zero);
                 if (suelo.Raycast(rayo, out float enter))
                 {
@@ -73,18 +75,14 @@ public class CodigoJugador : MonoBehaviour
 
             float distancia = direccionHorizontal.magnitude;
 
-            // aplicar multiplicador de velocidad
             float velocidadBase = velocidadLanzamiento * Mathf.Max(0.01f, velocidadMultiplicador);
             Vector3 velocidadHorizontal = (distancia > 0f ? direccionHorizontal.normalized : transform.forward) * velocidadBase;
 
-            // tiempo aproximado en horizontal (protegido)
             float tiempo = distancia / velocidadBase;
             tiempo = Mathf.Max(0.05f, tiempo);
 
-            // altura objetivo ajustada por arcMultiplier
             float alturaDeseada = alturaParabola * Mathf.Max(0.01f, arcMultiplier);
 
-            // ecuación para velocidad vertical inicial: y = v_y * t - 0.5 * g * t^2  => v_y = (y + 0.5*g*t^2)/t
             float g = Mathf.Abs(Physics.gravity.y);
             float velocidadVertical = (alturaDeseada + 0.5f * g * tiempo * tiempo) / tiempo;
 
@@ -102,19 +100,24 @@ public class CodigoJugador : MonoBehaviour
         lanzador.codigoJugador = this;
         lanzador.gameManager = FindFirstObjectByType<GameManager>();
 
-        // actualizar tiempo del último disparo (aplicar cooldown)
+        // asignar SFX de impacto desde el jugador / prefab (prioridad)
+        if (impactSfxPrefab != null)
+            lanzador.impactSfx = impactSfxPrefab;
+
+        // reproducir SFX de lanzamiento (local)
+        if (launchSfx != null)
+            AudioManager.Instance?.PlaySfx(launchSfx);
+
         tiempoUltimoDisparo = Time.time;
     }
 
     public void SumarPunto()
     {
         puntos++;
-        Debug.Log("+1 punto");
-        Debug.Log("Puntos: " + puntos);
     }
 
-    // Propiedad pública para que la UI lea los puntos
     public int Puntos => puntos;
+
     public float GetCooldown01()
     {
         if (tiempoEntreDisparos <= 0f)
