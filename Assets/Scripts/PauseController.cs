@@ -18,6 +18,15 @@ public class PauseController : MonoBehaviour
         if (optionsCanvas != null) optionsCanvas.SetActive(false);
     }
 
+    static void ConfigureMenuCanvas(GameObject panel, int order)
+    {
+        if (panel == null) return;
+        var canvas = panel.GetComponent<Canvas>();
+        if (canvas == null) return;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = order;
+    }
+
     void Update()
     {
         bool toggle = false;
@@ -52,6 +61,8 @@ public class PauseController : MonoBehaviour
         if (optionsCanvas != null) optionsCanvas.SetActive(false);
 
         Time.timeScale = 0f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         if (pauseAudio) AudioListener.pause = true;
     }

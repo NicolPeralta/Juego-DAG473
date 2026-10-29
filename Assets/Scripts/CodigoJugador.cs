@@ -17,7 +17,12 @@ public class CodigoJugador : MonoBehaviour
     public AudioClip impactSfxPrefab; 
 
     private CannonAimer cannon;
-    void Awake() => cannon = GetComponent<CannonAimer>();
+    private GameManager manager;
+    void Awake()
+    {
+        cannon = GetComponent<CannonAimer>();
+        manager = FindFirstObjectByType<GameManager>();
+    }
 
     private int puntos = 0;
     private float tiempoUltimoDisparo = -Mathf.Infinity;
@@ -66,6 +71,7 @@ public class CodigoJugador : MonoBehaviour
 
     void LanzarObjeto(Vector3 objetivo, GameObject cubo)
     {
+        if (manager != null && !manager.IsPlaying) return;
         if (prefabs == null || prefabs.Length == 0)
             return;
 

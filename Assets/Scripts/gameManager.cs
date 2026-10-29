@@ -21,7 +21,8 @@ public class GameManager : MonoBehaviour
     private Dictionary<GameObject, Vector3> posicionesIniciales = new Dictionary<GameObject, Vector3>();
     private Dictionary<GameObject, bool> objetosGolpeados = new Dictionary<GameObject, bool>();
     private GameObject ultimoObjeto = null;
-    private bool juegoActivo = true;
+    private bool juegoActivo = false;
+    public bool IsPlaying => juegoActivo;
     private float startTime;
     private float nextRoundTime;
     private float lastRoundStartTime;
@@ -114,11 +115,18 @@ public class GameManager : MonoBehaviour
                 objetosGolpeados[o] = false;
             }
         }
-        StartCoroutine(ControlarObjetos());
+        StartCoroutine(StartWithCountdown());
+    }
+
+    IEnumerator StartWithCountdown()
+    {
+        var countdown = gameObject.AddComponent<StartCountdown>();
+        yield return countdown.Play();
         juegoActivo = true;
         startTime = Time.time;
         lastRoundStartTime = startTime;
         nextRoundTime = startTime + roundLength;
+        StartCoroutine(ControlarObjetos());
         StartCoroutine(MonitorGameEnd());
     }
     IEnumerator ControlarObjetos()

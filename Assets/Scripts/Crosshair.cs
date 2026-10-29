@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 
 public class Crosshair : MonoBehaviour
 {
-    [Tooltip("Preferible: arrastra un Sprite aquí (importado como Sprite).")]
+    [Tooltip("Preferible: arrastra un Sprite aquï¿½ (importado como Sprite).")]
     public Sprite crosshairSprite;
 
     [Tooltip("Alternativa: arrastra un archivo .png como Texture2D (drag & drop).")]
@@ -16,10 +16,10 @@ public class Crosshair : MonoBehaviour
     [Tooltip("Pivote del rectTransform (0-1)")]
     public Vector2 pivot = new Vector2(0.5f, 0.5f);
 
-    [Tooltip("Offset en píxeles respecto al ratón")]
+    [Tooltip("Offset en pï¿½xeles respecto al ratï¿½n")]
     public Vector2 offset = Vector2.zero;
 
-    [Tooltip("Canvas en el que colocar la cruceta. Si es null se buscará o creará uno.")]
+    [Tooltip("Canvas en el que colocar la cruceta. Si es null se buscarï¿½ o crearï¿½ uno.")]
     public Canvas targetCanvas;
 
     private RectTransform rect;
@@ -60,7 +60,9 @@ public class Crosshair : MonoBehaviour
 
     void Update()
     {
-        Vector2 mousePos = Mouse.current != null ? Mouse.current.position.ReadValue() : (Vector2)Input.mousePosition;
+        UpdateCursor();
+        if (Time.timeScale == 0f || Mouse.current == null) return;
+        Vector2 mousePos = Mouse.current.position.ReadValue();
 
         if (targetCanvas.renderMode == RenderMode.ScreenSpaceOverlay)
         {
@@ -89,11 +91,21 @@ public class Crosshair : MonoBehaviour
 
     void OnEnable()
     {
-        Cursor.visible = false;
+        UpdateCursor();
+    }
+
+    void UpdateCursor()
+    {
+        bool inMenu = Time.timeScale == 0f;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = inMenu;
+        if (image != null) image.enabled = !inMenu;
     }
 
     void OnDisable()
     {
         Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        if (image != null) image.enabled = false;
     }
 }
