@@ -9,16 +9,22 @@ public class LanzadorObjeto : MonoBehaviour
     private bool yaGolpeo;
     private bool inFlight;
     private Vector3 aimPoint;
-    private float flightSpeed;
+    private Vector3 launchPosition;
+    private float flightDuration;
+    private float flightElapsed;
+    private float arcHeight;
     private Transform owner;
     private Rigidbody body;
 
     public Vector3 AimPoint => aimPoint;
 
-    public void Launch(Vector3 target, float speed, Transform launcher)
+    public void Launch(Vector3 target, float speed, Transform launcher, float height)
     {
         aimPoint = target;
-        flightSpeed = Mathf.Max(0.1f, speed);
+        launchPosition = transform.position;
+        arcHeight = Mathf.Max(0.1f, height);
+        flightDuration = Mathf.Max(0.1f, Vector3.Distance(launchPosition, target) / Mathf.Max(0.1f, speed));
+        flightElapsed = 0;
         owner = launcher;
         body = GetComponent<Rigidbody>();
         if (body != null)
@@ -34,36 +40,59 @@ public class LanzadorObjeto : MonoBehaviour
         inFlight = true;
     }
 
+    public Vector3 PositionOnArc(float normalizedTime)
+    {
+        float t = Mathf.Clamp01(normalizedTime);
+        return Vector3.Lerp(launchPosition, aimPoint, t) + Vector3.up * (4f * arcHeight * t * (1f - t));
+    }
+
     void FixedUpdate()
     {
         if (!inFlight || yaGolpeo) return;
-        Vector3 start = body != null ? body.position : transform.position;
-        Vector3 delta = aimPoint - start;
-        float remaining = delta.magnitude;
-        if (remaining <= 0.0001f) { FinishFlight(); return; }
-        Vector3 direction = delta / remaining;
-        float distance = Mathf.Min(flightSpeed * Time.fixedDeltaTime, remaining);
-        RaycastHit? nearest = null;
-        // RaycastAll keeps the sweep correct even with many overlapping colliders.
-        foreach (var hit in Physics.RaycastAll(start, direction, distance + 0.0001f, ~0, QueryTriggerInteraction.Collide))
+        float endTime = Mathf.Min(flightElapsed + Time.fixedDeltaTime, flightDuration);
+        // Subdivide the analytic curve so fast shots cannot skip thin targets.
+        while (flightElapsed < endTime)
         {
-            if (hit.transform.IsChildOf(transform) || (owner != null && hit.transform.IsChildOf(owner))) continue;
-            if (hit.collider.GetComponentInParent<LanzadorObjeto>() != null) continue;
-            if (hit.collider.isTrigger && FindTarget(hit.collider) == null && !hit.collider.CompareTag("Obstaculo")) continue;
-            if (!nearest.HasValue || hit.distance < nearest.Value.distance) nearest = hit;
+            Vector3 start = PositionOnArc(flightElapsed / flightDuration);
+            flightElapsed = Mathf.Min(flightElapsed + 0.005f, endTime);
+            Vector3 next = PositionOnArc(flightElapsed / flightDuration);
+            Vector3 delta = next - start;
+            float distance = delta.magnitude;
+            RaycastHit? nearest = null;
+            if (distance > 0.000001f)
+            {
+                foreach (var hit in Physics.RaycastAll(start, delta / distance, distance + 0.00001f, ~0, QueryTriggerInteraction.Collide))
+                {
+                    if (hit.transform.IsChildOf(transform) || (owner != null && hit.transform.IsChildOf(owner))) continue;
+                    if (hit.collider.GetComponentInParent<LanzadorObjeto>() != null) continue;
+                    if (hit.collider.isTrigger && FindTarget(hit.collider) == null && !hit.collider.CompareTag("Obstaculo")) continue;
+                    if (!nearest.HasValue || hit.distance < nearest.Value.distance) nearest = hit;
+                }
+            }
+            if (nearest.HasValue)
+            {
+                var hit = nearest.Value;
+                transform.position = hit.point;
+                HandleHit(hit.collider, hit.point);
+                if (!yaGolpeo) FinishFlight();
+                return;
+            }
+            if (body != null) body.position = next;
+            else transform.position = next;
         }
-        if (nearest.HasValue)
+        if (flightElapsed >= flightDuration)
         {
-            var hit = nearest.Value;
-            transform.position = hit.point;
-            HandleHit(hit.collider, hit.point);
-            if (!yaGolpeo) FinishFlight();
-            return;
+            // A curve ending exactly on a mesh may touch it without crossing a
+            // front-facing triangle. Confirm contact at the endpoint as well.
+            foreach (var collider in Physics.OverlapSphere(aimPoint, 0.01f, ~0, QueryTriggerInteraction.Collide))
+            {
+                if (FindTarget(collider) == null) continue;
+                transform.position = aimPoint;
+                HandleHit(collider, aimPoint);
+                if (yaGolpeo) return;
+            }
+            FinishFlight();
         }
-        Vector3 next = start + direction * distance;
-        if (body != null) body.position = next;
-        else transform.position = next;
-        if (distance >= remaining) FinishFlight();
     }
 
     void FinishFlight()

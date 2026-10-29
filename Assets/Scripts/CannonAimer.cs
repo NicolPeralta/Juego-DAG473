@@ -14,7 +14,7 @@ public class CannonAimer : MonoBehaviour
     public bool useClosestPointOnRay = false;
     public LayerMask groundLayerMask = ~0;
     public float minElevation = -15f;
-    public float maxElevation = 45f;
+    public float maxElevation = 80f;
     public Vector3 barrelPivotLocalPosition = new Vector3(1.59f, 2.34f, 0.1f);
     public Vector3 muzzleLocalPosition = new Vector3(-1.72f, 2.34f, 0.1f);
     public Transform Muzzle { get; private set; }
@@ -53,6 +53,8 @@ public class CannonAimer : MonoBehaviour
     {
         if (BarrelPivot == null) return;
         Vector3 direction = point - BarrelPivot.position;
+        var shooter = GetComponent<CodigoJugador>();
+        if (shooter != null) direction.y += 4f * Mathf.Max(0.1f, shooter.alturaParabola * shooter.arcMultiplier);
         Vector3 horizontal = Vector3.ProjectOnPlane(direction, Vector3.up);
         if (horizontal.sqrMagnitude < 0.0001f) return;
         Quaternion yaw = Quaternion.LookRotation(horizontal, Vector3.up) * Quaternion.Euler(offsetEuler);

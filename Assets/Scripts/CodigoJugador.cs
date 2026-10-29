@@ -85,7 +85,7 @@ public class CodigoJugador : MonoBehaviour
         lanzador.cuboObjetivo = cubo;
         lanzador.codigoJugador = this;
         lanzador.gameManager = FindFirstObjectByType<GameManager>();
-        lanzador.Launch(objetivo, Mathf.Max(0.1f, velocidadLanzamiento * velocidadMultiplicador), transform);
+        lanzador.Launch(objetivo, Mathf.Max(0.1f, velocidadLanzamiento * velocidadMultiplicador), transform, Mathf.Max(0.1f, alturaParabola * arcMultiplier));
 
         if (impactSfxPrefab != null)
             lanzador.impactSfx = impactSfxPrefab;
