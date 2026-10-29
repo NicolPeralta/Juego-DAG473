@@ -91,6 +91,7 @@ public class PauseController : MonoBehaviour
     public void OnButton_Quit()
     {
         Time.timeScale = 1f;
+        AudioListener.pause = false;
         if (!string.IsNullOrEmpty(mainMenuSceneName))
             SceneManager.LoadScene(mainMenuSceneName);
         else

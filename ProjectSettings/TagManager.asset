@@ -7,6 +7,9 @@ TagManager:
   - Cubo
   - Obstaculo
   - Music
+  - Cabello
+  - Ropa
+  - Gorro
   layers:
   - Default
   - TransparentFX

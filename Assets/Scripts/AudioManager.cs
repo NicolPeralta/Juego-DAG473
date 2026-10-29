@@ -1,18 +1,19 @@
 using UnityEngine;
 using UnityEngine.Audio;
 
+[DefaultExecutionOrder(-100)]
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
     public AudioMixer audioMixer;
-
     public string masterParamName = "MasterParam";
     public string musicParamName = "MusicaParam";
     public string sfxParamName = "EfectosParam";
-
+    public AudioClip backgroundMusic;
+    public AudioMixerGroup musicGroup;
+    public AudioMixerGroup sfxGroup;
     public AudioSource musicSource;
-    public string musicSourcesTag = "Music";
     [Range(0f, 1f)] public float defaultMaster = 1f;
     [Range(0f, 1f)] public float defaultMusic = 1f;
     [Range(0f, 1f)] public float defaultSfx = 1f;
@@ -24,7 +25,6 @@ public class AudioManager : MonoBehaviour
     const string PREF_MASTER = "AM_Master";
     const string PREF_MUSIC = "AM_Music";
     const string PREF_SFX = "AM_SFX";
-
     AudioSource sfxSource;
 
     void Awake()
@@ -37,34 +37,45 @@ public class AudioManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        MasterVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PREF_MASTER, defaultMaster));
+        MusicVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PREF_MUSIC, defaultMusic));
+        SfxVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PREF_SFX, defaultSfx));
 
-        sfxSource = gameObject.GetComponent<AudioSource>();
-        if (sfxSource == null) sfxSource = gameObject.AddComponent<AudioSource>();
+        // Both sources belong to the persistent manager, never to a scene canvas.
+        musicSource = gameObject.AddComponent<AudioSource>();
+        musicSource.playOnAwake = false;
+        musicSource.loop = true;
+        musicSource.spatialBlend = 0f;
+        musicSource.ignoreListenerPause = true;
+        musicSource.outputAudioMixerGroup = musicGroup;
+        musicSource.clip = backgroundMusic;
+
+        sfxSource = gameObject.AddComponent<AudioSource>();
         sfxSource.playOnAwake = false;
         sfxSource.loop = false;
-        sfxSource.spatialBlend = 0f; // 2D
-
-        if (musicSource == null && !string.IsNullOrEmpty(musicSourcesTag))
-        {
-            var go = GameObject.FindWithTag(musicSourcesTag);
-            if (go != null)
-                musicSource = go.GetComponent<AudioSource>();
-        }
-
-        MasterVolume = PlayerPrefs.GetFloat(PREF_MASTER, defaultMaster);
-        MusicVolume = PlayerPrefs.GetFloat(PREF_MUSIC, defaultMusic);
-        SfxVolume = PlayerPrefs.GetFloat(PREF_SFX, defaultSfx);
-
-        ApplyMaster(MasterVolume);
-        ApplyMusic(MusicVolume);
-        ApplySfx(SfxVolume);
+        sfxSource.spatialBlend = 0f;
+        sfxSource.outputAudioMixerGroup = sfxGroup;
     }
+
+    void Start()
+    {
+        if (Instance != this) return;
+        // Unity mixer parameters must be applied after Awake.
+        ApplyVolumes();
+        if (musicSource.clip != null) musicSource.Play();
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     public void SetMaster(float linear)
     {
         MasterVolume = Mathf.Clamp01(linear);
         PlayerPrefs.SetFloat(PREF_MASTER, MasterVolume);
         PlayerPrefs.Save();
-        ApplyMaster(MasterVolume);
+        ApplyVolumes();
     }
 
     public void SetMusic(float linear)
@@ -72,7 +83,7 @@ public class AudioManager : MonoBehaviour
         MusicVolume = Mathf.Clamp01(linear);
         PlayerPrefs.SetFloat(PREF_MUSIC, MusicVolume);
         PlayerPrefs.Save();
-        ApplyMusic(MusicVolume);
+        ApplyVolumes();
     }
 
     public void SetSfx(float linear)
@@ -80,73 +91,39 @@ public class AudioManager : MonoBehaviour
         SfxVolume = Mathf.Clamp01(linear);
         PlayerPrefs.SetFloat(PREF_SFX, SfxVolume);
         PlayerPrefs.Save();
-        ApplySfx(SfxVolume);
+        ApplyVolumes();
     }
 
-    void ApplyMaster(float linear)
+    void ApplyVolumes()
     {
-        if (audioMixer != null && !string.IsNullOrEmpty(masterParamName))
+        bool routed = audioMixer != null && musicGroup != null && sfxGroup != null;
+        if (routed)
         {
-            audioMixer.SetFloat(masterParamName, LinearToDb(Mathf.Max(0.0001f, linear)));
+            audioMixer.SetFloat(masterParamName, LinearToDb(MasterVolume));
+            audioMixer.SetFloat(musicParamName, LinearToDb(MusicVolume));
+            audioMixer.SetFloat(sfxParamName, LinearToDb(SfxVolume));
         }
-        else
+
+        // Each gain is applied once, either by the mixer or by the sources.
+        if (musicSource != null)
         {
-            AudioListener.volume = linear;
-            if (musicSource != null)
-                musicSource.volume = MusicVolume * MasterVolume;
+            musicSource.volume = routed ? 1f : MasterVolume * MusicVolume;
+            musicSource.mute = MasterVolume <= 0f || MusicVolume <= 0f;
+        }
+        if (sfxSource != null)
+        {
+            sfxSource.volume = routed ? 1f : MasterVolume * SfxVolume;
+            sfxSource.mute = MasterVolume <= 0f || SfxVolume <= 0f;
         }
     }
 
-    void ApplyMusic(float linear)
-    {
-        if (audioMixer != null && !string.IsNullOrEmpty(musicParamName))
-        {
-            audioMixer.SetFloat(musicParamName, LinearToDb(Mathf.Max(0.0001f, linear)));
-        }
-        else if (musicSource != null)
-        {
-            musicSource.volume = linear * MasterVolume;
-            if (!musicSource.isPlaying)
-            {
-                if (musicSource.clip != null)
-                    musicSource.Play();
-            }
-        }
-        else
-        {
-            // Fallback antiguo: ajustar AudioSources por tag
-            var gos = GameObject.FindGameObjectsWithTag(musicSourcesTag);
-            foreach (var go in gos)
-            {
-                var a = go.GetComponent<AudioSource>();
-                if (a != null)
-                {
-                    a.volume = linear * MasterVolume;
-                    if (!a.isPlaying && a.clip != null) a.Play();
-                }
-            }
-        }
-    }
-
-    void ApplySfx(float linear)
-    {
-        if (audioMixer != null && !string.IsNullOrEmpty(sfxParamName))
-        {
-            audioMixer.SetFloat(sfxParamName, LinearToDb(Mathf.Max(0.0001f, linear)));
-        }
-
-        SfxVolume = linear;
-    }
     public void PlaySfx(AudioClip clip)
     {
-        if (clip == null || sfxSource == null) return;
-        float vol = SfxVolume * MasterVolume;
-        sfxSource.PlayOneShot(clip, vol);
+        if (clip != null && sfxSource != null) sfxSource.PlayOneShot(clip);
     }
 
-    float LinearToDb(float linear)
+    static float LinearToDb(float linear)
     {
-        linear = Mathf.Clamp(linear, 0.0001f, 1f);
-        return Mathf.Log10(linear) * 20f;
+        return Mathf.Log10(Mathf.Clamp(linear, 0.0001f, 1f)) * 20f;
     }
 }

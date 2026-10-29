@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class CodigoJugador : MonoBehaviour
 {
@@ -15,22 +16,32 @@ public class CodigoJugador : MonoBehaviour
     public AudioClip launchSfx;    
     public AudioClip impactSfxPrefab; 
 
+    private CannonAimer cannon;
+    void Awake() => cannon = GetComponent<CannonAimer>();
+
     private int puntos = 0;
     private float tiempoUltimoDisparo = -Mathf.Infinity;
 
     void Update()
     {
-        if (Mouse.current != null ? Mouse.current.leftButton.wasPressedThisFrame : Input.GetMouseButtonDown(0))
+        if (Time.timeScale == 0f || camara == null || Mouse.current == null) return;
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        if (Mouse.current.leftButton.wasPressedThisFrame)
         {
             if (Time.time - tiempoUltimoDisparo < tiempoEntreDisparos)
                 return;
 
-            Ray rayo = camara.ScreenPointToRay(Mouse.current != null ? Mouse.current.position.ReadValue() : (Vector2)Input.mousePosition);
+            Ray rayo = camara.ScreenPointToRay(Mouse.current.position.ReadValue());
 
             Vector3 objetivo;
             GameObject cubo = null;
 
-            if (Physics.Raycast(rayo, out RaycastHit impacto))
+            if (cannon != null)
+            {
+                objetivo = cannon.GetAimPoint(rayo, out Collider targetCollider);
+                cubo = LanzadorObjeto.FindTarget(targetCollider);
+            }
+            else if (Physics.Raycast(rayo, out RaycastHit impacto))
             {
                 objetivo = impacto.point;
                 if (impacto.collider.CompareTag("Cubo"))
@@ -55,42 +66,17 @@ public class CodigoJugador : MonoBehaviour
 
     void LanzarObjeto(Vector3 objetivo, GameObject cubo)
     {
-        if (prefabs.Length == 0)
+        if (prefabs == null || prefabs.Length == 0)
             return;
 
         int indice = Random.Range(0, prefabs.Length);
+        Vector3 origen = cannon != null && cannon.Muzzle != null ? cannon.Muzzle.position : transform.position;
 
         GameObject objeto = Instantiate(
             prefabs[indice],
-            transform.position,
+            origen,
             Quaternion.identity
         );
-
-        Rigidbody rb = objeto.GetComponent<Rigidbody>();
-
-        if (rb != null)
-        {
-            Vector3 direccion = objetivo - transform.position;
-            Vector3 direccionHorizontal = new Vector3(direccion.x, 0f, direccion.z);
-
-            float distancia = direccionHorizontal.magnitude;
-
-            float velocidadBase = velocidadLanzamiento * Mathf.Max(0.01f, velocidadMultiplicador);
-            Vector3 velocidadHorizontal = (distancia > 0f ? direccionHorizontal.normalized : transform.forward) * velocidadBase;
-
-            float tiempo = distancia / velocidadBase;
-            tiempo = Mathf.Max(0.05f, tiempo);
-
-            float alturaDeseada = alturaParabola * Mathf.Max(0.01f, arcMultiplier);
-
-            float g = Mathf.Abs(Physics.gravity.y);
-            float velocidadVertical = (alturaDeseada + 0.5f * g * tiempo * tiempo) / tiempo;
-
-            Vector3 velocidad = velocidadHorizontal;
-            velocidad.y = velocidadVertical;
-
-            rb.linearVelocity = velocidad;
-        }
 
         LanzadorObjeto lanzador = objeto.GetComponent<LanzadorObjeto>();
         if (lanzador == null)
@@ -99,6 +85,7 @@ public class CodigoJugador : MonoBehaviour
         lanzador.cuboObjetivo = cubo;
         lanzador.codigoJugador = this;
         lanzador.gameManager = FindFirstObjectByType<GameManager>();
+        lanzador.Launch(objetivo, Mathf.Max(0.1f, velocidadLanzamiento * velocidadMultiplicador), transform);
 
         if (impactSfxPrefab != null)
             lanzador.impactSfx = impactSfxPrefab;
@@ -106,6 +93,9 @@ public class CodigoJugador : MonoBehaviour
         if (launchSfx != null)
             AudioManager.Instance?.PlaySfx(launchSfx);
 
+        if (cannon != null)
+            ProjectileEffects.RedSmoke(origen, cannon.MuzzleDirection);
+        Destroy(objeto, 12f);
         tiempoUltimoDisparo = Time.time;
     }
 

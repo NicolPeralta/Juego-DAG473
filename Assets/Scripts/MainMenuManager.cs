@@ -41,4 +41,9 @@ public class MainMenuManager : MonoBehaviour
     {
         Application.Quit();
     }
+    public void ShowMainMenu()
+    {
+        if (mainMenuCanvas != null) mainMenuCanvas.SetActive(true);
+        if (difficultySelector != null) difficultySelector.Hide();
+    }
 }
