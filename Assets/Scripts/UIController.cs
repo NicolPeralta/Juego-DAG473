@@ -6,15 +6,29 @@ public class UIController : MonoBehaviour
 {
     public CodigoJugador jugador;
     public Image cooldownImage;
+    [Tooltip("Arrastra aquí una Image de UI para mostrar la recarga del clic derecho.")]
+    public Image cooldownDerechoImage;
     public TextMeshProUGUI puntosText;
     public TextMeshProUGUI timeText;  
     public TextMeshProUGUI roundText; 
+
+    [Header("Cuenta regresiva y anuncios de ronda")]
+    [Tooltip("Fuente TMP para 3, 2, 1, ¡YA! y los anuncios de ronda. Vacío conserva la fuente predeterminada.")]
+    public TMP_FontAsset fuenteCuentaRegresiva;
 
     private GameManager gm;
 
     void Awake()
     {
         gm = FindFirstObjectByType<GameManager>();
+        if (cooldownDerechoImage != null)
+        {
+            cooldownDerechoImage.type = Image.Type.Filled;
+            cooldownDerechoImage.fillMethod = Image.FillMethod.Radial360;
+            cooldownDerechoImage.fillOrigin = (int)Image.Origin360.Top;
+            cooldownDerechoImage.raycastTarget = false;
+            cooldownDerechoImage.fillAmount = 0f;
+        }
     }
 
     void Update()
@@ -24,6 +38,12 @@ public class UIController : MonoBehaviour
             if (cooldownImage != null)
             {
                 cooldownImage.fillAmount = jugador.GetCooldown01();
+            }
+
+            if (cooldownDerechoImage != null)
+            {
+                cooldownDerechoImage.fillAmount = GameSettings.SelectedDifficulty == GameSettings.Difficulty.Facil
+                    ? 0f : jugador.GetRightCooldown01();
             }
 
             if (puntosText != null)
@@ -57,7 +77,7 @@ public class UIController : MonoBehaviour
             // Ronda actual
             if (roundText != null)
             {
-                roundText.text = $"Ronda {gm.CurrentRound} / {gm.TotalRounds}";
+                roundText.text = $"Nivel {gm.CurrentLevel} / {gm.TotalLevels}  |  Ronda {gm.CurrentRound} / {gm.TotalRounds}";
             }
         }
     }

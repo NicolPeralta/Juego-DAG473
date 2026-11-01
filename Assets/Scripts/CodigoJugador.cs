@@ -5,123 +5,93 @@ using UnityEngine.EventSystems;
 public class CodigoJugador : MonoBehaviour
 {
     public GameObject[] prefabs;
-    public float velocidadLanzamiento = 10f;
-    public float velocidadMultiplicador = 1.5f;
-    public float alturaParabola = 5f;
-    public float arcMultiplier = 1.2f;
+    public float velocidadLanzamiento = 12f, velocidadMultiplicador = 1.5f;
+    public float alturaParabola = 6f, arcMultiplier = 1.2f;
     public Camera camara;
     public float tiempoEntreDisparos = 1f;
+    [Min(0f)] public float tiempoEntreDisparosDerechos = 5f;
+    public AudioClip launchSfx, impactSfxPrefab;
+    [Range(2, 3)] public int defaultVolleySize = 2;
+    public float volleySeparation = .28f;
+    CannonAimer cannon;
+    GameManager manager;
+    int puntos;
+    float lastShot = -Mathf.Infinity;
+    float lastRightShot = -Mathf.Infinity;
+    public int Puntos => puntos;
+    public float ShotSpeed => Mathf.Max(1, velocidadLanzamiento * velocidadMultiplicador);
 
-    [Header("SFX")]
-    public AudioClip launchSfx;    
-    public AudioClip impactSfxPrefab; 
-
-    private CannonAimer cannon;
-    private GameManager manager;
     void Awake()
     {
         cannon = GetComponent<CannonAimer>();
         manager = FindFirstObjectByType<GameManager>();
     }
 
-    private int puntos = 0;
-    private float tiempoUltimoDisparo = -Mathf.Infinity;
+    // Height follows flight time squared: close shots have a very shallow arc.
+    public float ArcHeight(Vector3 start, Vector3 end)
+    {
+        float duration = Vector3.Distance(start, end) / ShotSpeed;
+        float height = 9.81f * duration * duration / 8f;
+        return Mathf.Min(Mathf.Max(0, alturaParabola), height * Mathf.Max(0, arcMultiplier));
+    }
 
     void Update()
     {
-        if (Time.timeScale == 0f || camara == null || Mouse.current == null) return;
+        if (Time.timeScale == 0 || camara == null || Mouse.current == null) return;
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-        if (Mouse.current.leftButton.wasPressedThisFrame)
+        bool spreadShot = Mouse.current.rightButton.wasPressedThisFrame && UsesSplitShotControls;
+        if (!Mouse.current.leftButton.wasPressedThisFrame && !spreadShot) return;
+        Ray ray = camara.ScreenPointToRay(Mouse.current.position.ReadValue());
+        Vector3 target = cannon != null ? cannon.GetAimPoint(ray, out _) : ray.GetPoint(50);
+        if (Mouse.current.leftButton.wasPressedThisFrame) TryFireAt(target);
+        if (spreadShot) TryFireAt(target, true);
+    }
+
+    bool UsesSplitShotControls => GameSettings.SelectedDifficulty == GameSettings.Difficulty.Medio
+        || GameSettings.SelectedDifficulty == GameSettings.Difficulty.Dificil;
+
+    public bool TryFireAt(Vector3 target) => TryFireAt(target, false);
+
+    public bool TryFireAt(Vector3 target, bool spreadShot)
+    {
+        if (Time.timeScale == 0 || (manager != null && !manager.IsPlaying)) return false;
+        if (spreadShot && !UsesSplitShotControls) return false;
+        float lastFireTime = spreadShot ? lastRightShot : lastShot;
+        float cooldown = spreadShot ? tiempoEntreDisparosDerechos : tiempoEntreDisparos;
+        if (Time.time - lastFireTime < cooldown || prefabs == null || prefabs.Length == 0) return false;
+        Vector3 origin = cannon != null && cannon.Muzzle != null ? cannon.Muzzle.position : transform.position;
+        spreadShot &= UsesSplitShotControls;
+        int count = UsesSplitShotControls ? (spreadShot ? 3 : 1)
+            : (manager != null ? manager.CandiesPerShot : Mathf.Clamp(defaultVolleySize, 2, 3));
+        Vector3 direction = (target - origin).normalized;
+        Vector3 side = Vector3.Cross(Vector3.up, direction).normalized;
+        // Medium/hard: the centre shot follows the cursor; the others fan out horizontally.
+        for (int i = 0; i < count; i++)
         {
-            if (Time.time - tiempoUltimoDisparo < tiempoEntreDisparos)
-                return;
-
-            Ray rayo = camara.ScreenPointToRay(Mouse.current.position.ReadValue());
-
-            Vector3 objetivo;
-            GameObject cubo = null;
-
-            if (cannon != null)
-            {
-                objetivo = cannon.GetAimPoint(rayo, out Collider targetCollider);
-                cubo = LanzadorObjeto.FindTarget(targetCollider);
-            }
-            else if (Physics.Raycast(rayo, out RaycastHit impacto))
-            {
-                objetivo = impacto.point;
-                if (impacto.collider.CompareTag("Cubo"))
-                    cubo = impacto.collider.gameObject;
-            }
-            else
-            {
-                Plane suelo = new Plane(Vector3.up, Vector3.zero);
-                if (suelo.Raycast(rayo, out float enter))
-                {
-                    objetivo = rayo.GetPoint(enter);
-                }
-                else
-                {
-                    objetivo = rayo.origin + rayo.direction * 10f;
-                }
-            }
-
-            LanzarObjeto(objetivo, cubo);
+            var prefab = prefabs[Random.Range(0, prefabs.Length)];
+            if (prefab == null) continue;
+            Vector3 start = UsesSplitShotControls ? origin
+                : origin + side * ((i - (count - 1) * .5f) * volleySeparation);
+            float angle = spreadShot && i > 0 ? (i == 1 ? -27f : 27f) : 0f;
+            Vector3 shotTarget = angle == 0f ? target
+                : origin + Quaternion.AngleAxis(angle, Vector3.up) * (target - origin);
+            var candy = Instantiate(prefab, start, Quaternion.identity);
+            var shot = candy.GetComponent<LanzadorObjeto>();
+            if (shot == null) shot = candy.AddComponent<LanzadorObjeto>();
+            shot.codigoJugador = this;
+            shot.gameManager = manager;
+            shot.impactSfx = impactSfxPrefab;
+            shot.Launch(shotTarget, ShotSpeed, transform, ArcHeight(start, shotTarget));
+            Destroy(candy, 12f);
         }
+        AudioManager.Instance?.PlaySfx(launchSfx);
+        ProjectileEffects.RedSmoke(origin, cannon != null ? cannon.MuzzleDirection : direction);
+        if (spreadShot) lastRightShot = Time.time;
+        else lastShot = Time.time;
+        return true;
     }
 
-    void LanzarObjeto(Vector3 objetivo, GameObject cubo)
-    {
-        if (manager != null && !manager.IsPlaying) return;
-        if (prefabs == null || prefabs.Length == 0)
-            return;
-
-        int indice = Random.Range(0, prefabs.Length);
-        Vector3 origen = cannon != null && cannon.Muzzle != null ? cannon.Muzzle.position : transform.position;
-
-        GameObject objeto = Instantiate(
-            prefabs[indice],
-            origen,
-            Quaternion.identity
-        );
-
-        LanzadorObjeto lanzador = objeto.GetComponent<LanzadorObjeto>();
-        if (lanzador == null)
-            lanzador = objeto.AddComponent<LanzadorObjeto>();
-
-        lanzador.cuboObjetivo = cubo;
-        lanzador.codigoJugador = this;
-        lanzador.gameManager = FindFirstObjectByType<GameManager>();
-        lanzador.Launch(objetivo, Mathf.Max(0.1f, velocidadLanzamiento * velocidadMultiplicador), transform, Mathf.Max(0.1f, alturaParabola * arcMultiplier));
-
-        if (impactSfxPrefab != null)
-            lanzador.impactSfx = impactSfxPrefab;
-
-        if (launchSfx != null)
-            AudioManager.Instance?.PlaySfx(launchSfx);
-
-        if (cannon != null)
-            ProjectileEffects.RedSmoke(origen, cannon.MuzzleDirection);
-        Destroy(objeto, 12f);
-        tiempoUltimoDisparo = Time.time;
-    }
-
-    public void SumarPunto()
-    {
-        puntos++;
-    }
-
-    public int Puntos => puntos;
-
-    public float GetCooldown01()
-    {
-        if (tiempoEntreDisparos <= 0f)
-            return 0f;
-
-        float elapsed = Time.time - tiempoUltimoDisparo;
-        if (elapsed >= tiempoEntreDisparos)
-            return 0f;
-
-        float t = Mathf.Clamp01(elapsed / tiempoEntreDisparos);
-        return 1f - t;
-    }
+    public void SumarPunto() => puntos++;
+    public float GetCooldown01() => tiempoEntreDisparos <= 0 ? 0 : 1f - Mathf.Clamp01((Time.time - lastShot) / tiempoEntreDisparos);
+    public float GetRightCooldown01() => tiempoEntreDisparosDerechos <= 0 ? 0 : 1f - Mathf.Clamp01((Time.time - lastRightShot) / tiempoEntreDisparosDerechos);
 }

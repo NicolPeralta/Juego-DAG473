@@ -22,7 +22,7 @@ public class LanzadorObjeto : MonoBehaviour
     {
         aimPoint = target;
         launchPosition = transform.position;
-        arcHeight = Mathf.Max(0.1f, height);
+        arcHeight = Mathf.Max(0f, height);
         flightDuration = Mathf.Max(0.1f, Vector3.Distance(launchPosition, target) / Mathf.Max(0.1f, speed));
         flightElapsed = 0;
         owner = launcher;
@@ -86,7 +86,9 @@ public class LanzadorObjeto : MonoBehaviour
             // front-facing triangle. Confirm contact at the endpoint as well.
             foreach (var collider in Physics.OverlapSphere(aimPoint, 0.01f, ~0, QueryTriggerInteraction.Collide))
             {
-                if (FindTarget(collider) == null) continue;
+                if (collider.transform.IsChildOf(transform) || (owner != null && collider.transform.IsChildOf(owner))) continue;
+                if (collider.GetComponentInParent<LanzadorObjeto>() != null) continue;
+                if (collider.isTrigger && FindTarget(collider) == null && !collider.CompareTag("Obstaculo")) continue;
                 transform.position = aimPoint;
                 HandleHit(collider, aimPoint);
                 if (yaGolpeo) return;
@@ -121,20 +123,19 @@ public class LanzadorObjeto : MonoBehaviour
         if (yaGolpeo || other == null) return;
         GameObject target = FindTarget(other);
         if (target == null && cuboObjetivo != null && other.transform.IsChildOf(cuboObjetivo.transform)) target = cuboObjetivo;
-        if (target != null)
+        if (other.transform.IsChildOf(transform) || (owner != null && other.transform.IsChildOf(owner))) return;
+        if (other.GetComponentInParent<LanzadorObjeto>() != null) return;
+        if (other.isTrigger && target == null && !other.CompareTag("Obstaculo")) return;
+        // All solid scenery shatters the candy; only a live target gives points.
+        yaGolpeo = true;
+        inFlight = false;
+        if (target != null && (gameManager == null || gameManager.TryHitTarget(target)))
         {
-            yaGolpeo = true;
-            ProjectileEffects.Shatter(point, ProjectileEffects.ProjectileColor(gameObject));
             if (codigoJugador != null) codigoJugador.SumarPunto();
-            if (gameManager != null) gameManager.BajarObjeto(target);
             AudioManager.Instance?.PlaySfx(impactSfx);
-            Destroy(gameObject);
         }
-        else if (other.CompareTag("Obstaculo") || other.CompareTag("Player"))
-        {
-            yaGolpeo = true;
-            Destroy(gameObject);
-        }
+        ProjectileEffects.Shatter(point, ProjectileEffects.ProjectileColor(gameObject));
+        Destroy(gameObject);
     }
 
     public static GameObject FindTarget(Collider collider)

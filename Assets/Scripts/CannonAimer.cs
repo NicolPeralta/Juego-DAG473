@@ -9,7 +9,8 @@ public class CannonAimer : MonoBehaviour
     public Vector3 offsetEuler = new Vector3(0, 90, 0);
     public bool onlyRotateY = false;
     public bool smooth = true;
-    public float rotationSpeed = 180f;
+    public float rotationSpeed = 540f;
+    public float aimSmoothing = .045f;
     public float aimDistance = 50f;
     public bool useClosestPointOnRay = false;
     public LayerMask groundLayerMask = ~0;
@@ -54,14 +55,16 @@ public class CannonAimer : MonoBehaviour
         if (BarrelPivot == null) return;
         Vector3 direction = point - BarrelPivot.position;
         var shooter = GetComponent<CodigoJugador>();
-        if (shooter != null) direction.y += 4f * Mathf.Max(0.1f, shooter.alturaParabola * shooter.arcMultiplier);
+        // Match the shallow launch tangent instead of a fixed, exaggerated lob.
+        if (shooter != null && Muzzle != null) direction.y += 4f * shooter.ArcHeight(Muzzle.position, point);
         Vector3 horizontal = Vector3.ProjectOnPlane(direction, Vector3.up);
         if (horizontal.sqrMagnitude < 0.0001f) return;
         Quaternion yaw = Quaternion.LookRotation(horizontal, Vector3.up) * Quaternion.Euler(offsetEuler);
-        transform.rotation = smooth ? Quaternion.RotateTowards(transform.rotation, yaw, rotationSpeed * deltaTime) : yaw;
+        float blend = 1f - Mathf.Exp(-deltaTime / Mathf.Max(.001f, aimSmoothing));
+        transform.rotation = smooth ? Quaternion.RotateTowards(transform.rotation, Quaternion.Slerp(transform.rotation, yaw, blend), rotationSpeed * deltaTime) : yaw;
         float elevation = onlyRotateY ? 0 : Mathf.Clamp(Mathf.Atan2(direction.y, horizontal.magnitude) * Mathf.Rad2Deg, minElevation, maxElevation);
         Quaternion pitch = Quaternion.AngleAxis(-elevation, Vector3.forward);
-        BarrelPivot.localRotation = smooth ? Quaternion.RotateTowards(BarrelPivot.localRotation, pitch, rotationSpeed * deltaTime) : pitch;
+        BarrelPivot.localRotation = smooth ? Quaternion.RotateTowards(BarrelPivot.localRotation, Quaternion.Slerp(BarrelPivot.localRotation, pitch, blend), rotationSpeed * deltaTime) : pitch;
     }
 
     public Vector3 GetAimPoint(Ray ray, out Collider hitCollider)

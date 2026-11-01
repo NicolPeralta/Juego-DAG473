@@ -14,6 +14,8 @@ public class PauseController : MonoBehaviour
 
     void Awake()
     {
+        ConfigureMenuCanvas(pauseCanvas, 100);
+        ConfigureMenuCanvas(optionsCanvas, 110);
         if (pauseCanvas != null) pauseCanvas.SetActive(false);
         if (optionsCanvas != null) optionsCanvas.SetActive(false);
     }
@@ -35,11 +37,6 @@ public class PauseController : MonoBehaviour
         {
             var kb = Keyboard.current;
             if (kb.escapeKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)
-                toggle = true;
-        }
-        else
-        {
-            if (UnityEngine.Input.GetKeyDown(KeyCode.Escape) || UnityEngine.Input.GetKeyDown(KeyCode.Space))
                 toggle = true;
         }
 

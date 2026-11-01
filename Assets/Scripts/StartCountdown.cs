@@ -11,7 +11,7 @@ public class StartCountdown : MonoBehaviour
     CanvasGroup group;
     TextMeshProUGUI label;
 
-    public IEnumerator Play()
+    void CreateOverlay()
     {
         overlay = new GameObject("Cuenta regresiva", typeof(Canvas), typeof(CanvasScaler), typeof(CanvasGroup));
         overlay.transform.SetParent(transform, false);
@@ -28,9 +28,12 @@ public class StartCountdown : MonoBehaviour
         var textObject = new GameObject("Numero", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         textObject.transform.SetParent(overlay.transform, false);
         label = textObject.GetComponent<TextMeshProUGUI>();
+        var ui = FindFirstObjectByType<UIController>();
+        if (ui != null && ui.fuenteCuentaRegresiva != null)
+            label.font = ui.fuenteCuentaRegresiva;
         label.rectTransform.anchorMin = label.rectTransform.anchorMax = new Vector2(.5f, .5f);
         label.rectTransform.anchoredPosition = Vector2.zero;
-        label.rectTransform.sizeDelta = new Vector2(700, 240);
+        label.rectTransform.sizeDelta = new Vector2(1500, 360);
         label.alignment = TextAlignmentOptions.Center;
         label.fontSize = 150;
         label.fontStyle = FontStyles.Bold;
@@ -38,10 +41,31 @@ public class StartCountdown : MonoBehaviour
         label.outlineWidth = .2f;
         label.outlineColor = new Color32(35, 20, 45, 255);
         label.raycastTarget = false;
-        for (int number = 3; number > 0; number--)
-            yield return Show(number.ToString(), 1f);
+    }
+
+    public IEnumerator Play(string title = "", bool initial = true)
+    {
+        CreateOverlay();
+        if (!string.IsNullOrEmpty(title))
+        {
+            label.fontSize = 90;
+            yield return Show(title, 2f);
+        }
+        label.fontSize = 150;
+        if (initial)
+            for (int number = 3; number > 0; number--)
+                yield return Show(number.ToString(), 1f);
         yield return Show("¡YA!", .45f);
         CurrentText = "";
+        Destroy(overlay);
+        Destroy(this);
+    }
+
+    public IEnumerator PlayMessage(string message, float duration)
+    {
+        CreateOverlay();
+        label.fontSize = 80;
+        yield return Show(message, duration);
         Destroy(overlay);
         Destroy(this);
     }
@@ -66,3 +90,4 @@ public class StartCountdown : MonoBehaviour
         if (overlay != null) Destroy(overlay);
     }
 }
+
